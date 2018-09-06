@@ -11,5 +11,3 @@ libraryDependencies ++= Seq(
 // Github sbt source dependencies.
 lazy val distribution = RootProject(uri("git://github.com/luiarthur/scala-distributions.git"))
 lazy val root = Project("root", file(".")).dependsOn(distribution)
-
-assemblyJarName in assembly := "mcmc.jar"
