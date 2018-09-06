@@ -5,21 +5,12 @@ import distribution.RandomGeneric
 case class TuningParam[T](var value:T, var accCount:Int=0, var currIter:Int=1) {
 
   def update(accept:Boolean) {
-    if (accept) { accCount += 1 }
+    if (accept) accCount += 1
     currIter += 1
   }
 
   def accRate:Double = accCount.toDouble / currIter
 }
-
-//case class TuningParam[Double](var value:Double) extends TuningParam(value)
-
-
-
-/* Test
-case class C(var value:Double) extends TuningParam(value)
-val c = C(10)
-*/
 
 
 trait MCMC {
@@ -33,7 +24,7 @@ trait MCMC {
     if (p > u) cand else curr
   }
 
-  def metropolis_vec(curr:Array[Double], logFullCond:Array[Double]=>Double, stepCovMat:Array[Array[Double]], rdg:RNG): Array[Double] = {
+  def metropolisVec(curr:Array[Double], logFullCond:Array[Double]=>Double, stepCovMat:Array[Array[Double]], rdg:RNG): Array[Double] = {
     val cand = rdg.nextMvNormal(curr, stepCovMat)
     val u = math.log(rdg.nextUniform(0,1))
     val p = logFullCond(cand) - logFullCond(curr)
@@ -46,7 +37,10 @@ trait MCMC {
    * Another useful website:
    *   https://m-clark.github.io/docs/ld_mcmc/index_onepage.html
    */
-  def metropolisAdaptive(curr:Double, logFullCond:Double=>Double, stepSig:TuningParam[Double], rdg:RNG, delta:Int=>Double=defaultDelta, targetAcc:Double=.44) = {
+  def metropolisAdaptive(curr:Double, logFullCond:Double=>Double,
+                         stepSig:TuningParam[Double], rdg:RNG,
+                         delta:Int=>Double=defaultDelta,
+                         targetAcc:Double=.44):Double = {
 
     val iter = stepSig.currIter
     val factor = math.exp(delta(iter))
@@ -92,6 +86,10 @@ trait MCMC {
     logpdfX(math.exp(logX), a, b) + logX
   }
 
+  def logpdfLogX(logX:Double, logpdfX:Double=>Double): Double = {
+    logpdfX(math.exp(logX)) + logX
+  }
+  
   def pdfLogistic(x:Double, loc:Double=0, scale:Double=1):Double = {
     (loc, scale) match {
       case (0, 1) => 0.25 * math.pow(sech(x / 2.0), 2.0)
