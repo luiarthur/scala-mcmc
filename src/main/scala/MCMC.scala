@@ -89,6 +89,33 @@ trait MCMC {
   def logpdfLogX(logX:Double, logpdfX:Double=>Double): Double = {
     logpdfX(math.exp(logX)) + logX
   }
+  /* R Test
+  logpdfLogX = function(logX, logpdfX) logpdfX(exp(logX)) + logX
+  logX = log(rgamma(1E6, 5, 3))
+  xx = seq(-10, 3, l=1000)
+  den = logpdfLogX(xx, function(x) dgamma(x, 5, 3, log=TRUE))
+  plot(density(logX), col='black', lwd=3)
+  lines(xx, exp(den), lty=3, col='grey', lwd=3)
+   */
+
+  def logpdfLogitX(logitX:Double, logpdfX:Double=>Double, a:Double=0, b:Double=1): Double = {
+    lazy val x = sigmoid(logitX, a, b)
+    lazy val logJacobian:Double = logpdfLogistic(logitX) + math.log(b - a)
+    logpdfX(x) + logJacobian
+  }
+  /* R Test
+  sigmoid = function(y, a=0, b=1) (b * exp(y) + a) / (1 + exp(y))
+  logit = function(x, a=0, b=1) log(x - a) - log(b - x)
+  logpdfLogitX = function(logitX, logpdfX, a=0, b=1) {
+    logpdfX(sigmoid(logitX, a, b)) + dlogis(logitX, log=TRUE) + log(b-a)
+  }
+  logitX = logit(runif(1E6, 2, 6), 2, 6)
+  xx = seq(-10, 10, l=1000)
+  den = logpdfLogitX(xx, function(x) dunif(x, 2, 6, log=TRUE), 2, 6)
+  plot(density(logitX), col='black', lwd=3)
+  lines(xx, exp(den), lty=3, col='red', lwd=3)
+   */
+
   
   def pdfLogistic(x:Double, loc:Double=0, scale:Double=1):Double = {
     (loc, scale) match {
@@ -102,5 +129,42 @@ trait MCMC {
       case (0, 1) => math.log(0.25) + 2.0 * math.log(sech(x / 2.0))
       case _ => logpdfLogistic((x - loc) / scale) - math.log(scale)
     }
+  }
+
+  // TODO: Test
+  def metLogAdaptive(curr:Double, ll:Double=>Double, lp: Double=>Double,
+                     stepSig:TuningParam[Double], rdg:RNG,
+                     delta:Int=>Double=defaultDelta,
+                     targetAcc:Double=.44):Double = {
+    val currLogX = math.log(curr)
+
+    def lfcLogX(logX:Double):Double = {
+      val x = math.exp(logX)
+      ll(x) + logpdfLogX(logX, lp)
+    }
+
+    val newLogX = metropolisAdaptive(currLogX, lfcLogX, stepSig, rdg,
+                                     delta, targetAcc)
+    val newX = math.exp(newLogX)
+    newX
+  }
+
+  // TODO: Test
+  def metLogitAdaptive(curr:Double, ll:Double=>Double, lp: Double=>Double,
+                       a:Double=0, b:Double=1,
+                       stepSig:TuningParam[Double], rdg:RNG,
+                       delta:Int=>Double=defaultDelta,
+                       targetAcc:Double=.44):Double = {
+    val currLogitX = logit(curr, a, b)
+
+    def lfcLogitX(logitX:Double):Double = {
+      val x = math.exp(logitX)
+      ll(x) + logpdfLogitX(logitX, lp, a, b)
+    }
+
+    val newLogitX = metropolisAdaptive(currLogitX, lfcLogitX, stepSig, rdg,
+                                       delta, targetAcc)
+    val newX = sigmoid(newLogitX, a, b)
+    newX
   }
 }
