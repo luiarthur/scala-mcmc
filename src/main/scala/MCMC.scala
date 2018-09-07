@@ -1,6 +1,7 @@
 package mcmc
 
 import distribution.RandomGeneric
+import distribution.continuous.Logistic
 
 case class TuningParam[T](var value:T, var accCount:Int=0, var currIter:Int=1) {
 
@@ -100,7 +101,7 @@ trait MCMC {
 
   def logpdfLogitX(logitX:Double, logpdfX:Double=>Double, a:Double=0, b:Double=1): Double = {
     lazy val x = sigmoid(logitX, a, b)
-    lazy val logJacobian:Double = logpdfLogistic(logitX) + math.log(b - a)
+    lazy val logJacobian:Double = Logistic(0, 1).lpdf(logitX) + math.log(b - a)
     logpdfX(x) + logJacobian
   }
   /* R Test
@@ -117,21 +118,6 @@ trait MCMC {
    */
 
   
-  def pdfLogistic(x:Double, loc:Double=0, scale:Double=1):Double = {
-    (loc, scale) match {
-      case (0, 1) => 0.25 * math.pow(sech(x / 2.0), 2.0)
-      case _ => pdfLogistic((x - loc) / scale) / scale
-    }
-  }
-
-  def logpdfLogistic(x:Double, loc:Double=0, scale:Double=1): Double = {
-    (loc, scale) match {
-      case (0, 1) => math.log(0.25) + 2.0 * math.log(sech(x / 2.0))
-      case _ => logpdfLogistic((x - loc) / scale) - math.log(scale)
-    }
-  }
-
-  // TODO: Test
   def metLogAdaptive(curr:Double, ll:Double=>Double, lp: Double=>Double,
                      stepSig:TuningParam[Double], rdg:RNG,
                      delta:Int=>Double=defaultDelta,

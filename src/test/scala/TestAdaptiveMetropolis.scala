@@ -1,7 +1,7 @@
 import org.scalatest.FunSuite
 
 class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
-  val printDebug = false
+  val printDebug = true
   import mcmc.TuningParam
 
   // Set random seed

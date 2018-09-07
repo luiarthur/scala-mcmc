@@ -48,17 +48,4 @@ class TestSuite extends FunSuite {
     val p = .3
     approx(logit(sigmoid(p)), p)
   }
-
-  test("Test logistic pdf") {
-    object T extends mcmc.MCMC
-    import T._
-    val p = pdfLogistic(3, 2, 4)
-    val valueFromR = 0.06153352
-    approx(p, valueFromR)
-
-    val logP = logpdfLogistic(3, 2, 4)
-    val logvalueFromR = -2.788173
-    approx(logP, logvalueFromR)
-  }
-
 }
