@@ -17,17 +17,17 @@ case class TuningParam[T](var value:T, var accCount:Int=0, var currIter:Int=1) {
 trait MCMC {
   type RNG = RandomGeneric
   def metropolis(curr:Double, logFullCond: Double=>Double,
-                 stepSig:Double, rdg:RNG): Double = {
+                 stepSig:Double, rng:RNG): Double = {
 
-    val cand = rdg.nextGaussian(curr, stepSig)
-    val u = math.log(rdg.nextUniform(0,1))
+    val cand = rng.nextGaussian(curr, stepSig)
+    val u = math.log(rng.nextUniform(0,1))
     val p = logFullCond(cand) - logFullCond(curr)
     if (p > u) cand else curr
   }
 
-  def metropolisVec(curr:Array[Double], logFullCond:Array[Double]=>Double, stepCovMat:Array[Array[Double]], rdg:RNG): Array[Double] = {
-    val cand = rdg.nextMvNormal(curr, stepCovMat)
-    val u = math.log(rdg.nextUniform(0,1))
+  def metropolisVec(curr:Array[Double], logFullCond:Array[Double]=>Double, stepCovMat:Array[Array[Double]], rng:RNG): Array[Double] = {
+    val cand = rng.nextMvNormal(curr, stepCovMat)
+    val u = math.log(rng.nextUniform(0,1))
     val p = logFullCond(cand) - logFullCond(curr)
     if (p > u) cand else curr
   }
@@ -39,7 +39,7 @@ trait MCMC {
    *   https://m-clark.github.io/docs/ld_mcmc/index_onepage.html
    */
   def metropolisAdaptive(curr:Double, logFullCond:Double=>Double,
-                         stepSig:TuningParam[Double], rdg:RNG,
+                         stepSig:TuningParam[Double], rng:RNG,
                          delta:Int=>Double=defaultDelta,
                          targetAcc:Double=.44):Double = {
 
@@ -52,8 +52,8 @@ trait MCMC {
       stepSig.value /= factor
     }
 
-    val cand = rdg.nextGaussian(curr, stepSig.value)
-    val u = math.log(rdg.nextUniform(0,1))
+    val cand = rng.nextGaussian(curr, stepSig.value)
+    val u = math.log(rng.nextUniform(0,1))
     val p = logFullCond(cand) - logFullCond(curr)
     val accept = p > u
 
@@ -80,11 +80,6 @@ trait MCMC {
 
   def logit(p:Double, a:Double=0, b:Double=1): Double = {
     math.log(p - a) - math.log(b - p)
-  }
-
-  // TODO: Needs testing.
-  def logpdfLogX2Param(logX:Double, logpdfX:(Double,Double,Double)=>Double, params:Double, a:Double, b:Double): Double = {
-    logpdfX(math.exp(logX), a, b) + logX
   }
 
   def logpdfLogX(logX:Double, logpdfX:Double=>Double): Double = {
@@ -119,7 +114,7 @@ trait MCMC {
 
   
   def metLogAdaptive(curr:Double, ll:Double=>Double, lp: Double=>Double,
-                     stepSig:TuningParam[Double], rdg:RNG,
+                     stepSig:TuningParam[Double], rng:RNG,
                      delta:Int=>Double=defaultDelta,
                      targetAcc:Double=.44):Double = {
     val currLogX = math.log(curr)
@@ -129,7 +124,7 @@ trait MCMC {
       ll(x) + logpdfLogX(logX, lp)
     }
 
-    val newLogX = metropolisAdaptive(currLogX, lfcLogX, stepSig, rdg,
+    val newLogX = metropolisAdaptive(currLogX, lfcLogX, stepSig, rng,
                                      delta, targetAcc)
     val newX = math.exp(newLogX)
     newX
@@ -138,7 +133,7 @@ trait MCMC {
   // TODO: Test
   def metLogitAdaptive(curr:Double, ll:Double=>Double, lp: Double=>Double,
                        a:Double=0, b:Double=1,
-                       stepSig:TuningParam[Double], rdg:RNG,
+                       stepSig:TuningParam[Double], rng:RNG,
                        delta:Int=>Double=defaultDelta,
                        targetAcc:Double=.44):Double = {
     val currLogitX = logit(curr, a, b)
@@ -148,9 +143,37 @@ trait MCMC {
       ll(x) + logpdfLogitX(logitX, lp, a, b)
     }
 
-    val newLogitX = metropolisAdaptive(currLogitX, lfcLogitX, stepSig, rdg,
+    val newLogitX = metropolisAdaptive(currLogitX, lfcLogitX, stepSig, rng,
                                        delta, targetAcc)
     val newX = sigmoid(newLogitX, a, b)
     newX
   }
+
+  // Section 2 of: http://probability.ca/jeff/ftpdir/adaptex.pdf
+  def metAdaptiveHaario(history:List[Double], logFullCond:Double=>Double, stepSig:TuningParam[Double], beta:Double=0.05, rng:RNG):Double = {
+    def proposalSample(curr:Double): Double = {
+      if (stepSig.currIter > 2) {
+        val u = rng.nextDouble
+        if (beta > u) {
+          rng.nextGaussian(curr, 0.1)
+        } else {
+          val s = 2.38 * sd(history)
+          rng.nextGaussian(curr, s)
+        }
+      } else {
+        rng.nextGaussian(curr, 0.1)
+      }
+    }
+
+    def proposalDensity(curr:Double): Double = ???
+    ???
+  }
+
+  private def mean(x:List[Double]) = x.sum / x.size
+  private def variance(x: List[Double]) = {
+    val m = mean(x)
+    val ss = x.map(xi => math.pow(xi - m, 2)).sum
+    ss / x.size
+  }
+  private def sd(x: List[Double]) = math.sqrt(variance(x))
 }
