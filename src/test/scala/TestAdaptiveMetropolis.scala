@@ -94,6 +94,17 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
       assertApprox(m, mtrue, eps)
     }
     assertApprox(sig2Mean, sig2True, eps)
+
+    /* Rscala example
+    val R = org.ddahl.rscala.RClient()
+    R.sig2Post = sig2Post.toArray
+    R eval """
+    library(rcommon)
+    pdf("src/test/output/plots.pdf")
+    plotPost(sig2Post)
+    dev.off()
+    """ 
+    */
   }
 }
 
