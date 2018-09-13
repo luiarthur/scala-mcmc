@@ -66,7 +66,7 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
     val state = Param(Array(0, 0), 1)
     val (niter, nburn) = (2000, 2000)
 
-    val out = Model.gibbs(state, niter=niter, nburn=nburn, printProgress=false)
+    val out = Model.gibbs(state, niter=niter, nburn=nburn, printProgress=printDebug)
     val muPost = out._1.map{ s => s.mu }
     val muMean = muPost.transpose.map{ mean }
     val muSd = muPost.transpose.map{ sd }
