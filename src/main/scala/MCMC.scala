@@ -3,14 +3,18 @@ package mcmc
 import distribution.RandomGeneric
 import distribution.continuous.Logistic
 
-case class TuningParam[T](var value:T, var accCount:Int=0, var currIter:Int=1) {
+case class TuningParam[T](var value:T, var accCount:Int=0, var currIter:Int=1, batchSize:Int=50) {
 
   def update(accept:Boolean) {
     if (accept) accCount += 1
     currIter += 1
   }
 
-  def accRate:Double = accCount.toDouble / currIter
+  def reset:Unit = {
+    accCount = 0
+  }
+
+  def accRate:Double = accCount.toDouble / batchSize
 }
 
 
@@ -44,12 +48,17 @@ trait MCMC {
                          targetAcc:Double=.44):Double = {
 
     val iter = stepSig.currIter
-    val factor = math.exp(delta(iter))
+    val batchSize = stepSig.batchSize
 
-    if (stepSig.accRate > targetAcc) {
-      stepSig.value *= factor
-    } else {
-      stepSig.value /= factor
+    if (iter % batchSize == 0) {
+      val n = (iter / batchSize).toInt
+      val factor = math.exp(delta(n))
+      if (stepSig.accRate > targetAcc) {
+        stepSig.value *= factor
+      } else {
+        stepSig.value /= factor
+      }
+      stepSig.reset
     }
 
     val cand = rng.nextGaussian(curr, stepSig.value)

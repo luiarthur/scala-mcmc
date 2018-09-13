@@ -1,7 +1,7 @@
 import org.scalatest.FunSuite
 
 class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
-  val printDebug = false
+  val printDebug = true
   import mcmc.TuningParam
 
   // Set random seed
@@ -64,7 +64,7 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
     }
 
     val state = Param(Array(0, 0), 1)
-    val (niter, nburn) = (2000, 2000)
+    val (niter, nburn) = (2000, 20000)
 
     val out = Model.gibbs(state, niter=niter, nburn=nburn, printProgress=printDebug)
     val muPost = out._1.map{ s => s.mu }
@@ -95,16 +95,23 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
     }
     assertApprox(sig2Mean, sig2True, eps)
 
-    /* Rscala example
+    ///* Rscala example
     val R = org.ddahl.rscala.RClient()
     R.sig2Post = sig2Post.toArray
+    R.sig2True = sig2True
+    R.muPost = muPost.toArray
+    R.muTrue = muTrue
+    R.J = J
     R eval """
     library(rcommon)
     pdf("src/test/output/plots.pdf")
-    plotPost(sig2Post)
+    plotPost(sig2Post, main=paste('truth:', sig2True))
+    plotPosts(muPost, cnames=paste('truth:', round(muTrue, 3)))
+    #plot(1:length($cs_sig2), $cs_sig2, type='l')
+
     dev.off()
     """ 
-    */
+    //*/
   }
 }
 
