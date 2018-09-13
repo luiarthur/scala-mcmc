@@ -1,4 +1,5 @@
 import org.scalatest.FunSuite
+import mcmc.util.timer
 
 class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
   val printDebug = true
@@ -12,6 +13,7 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
   test("Normal Model") {
     import distribution.continuous.{InverseGamma, Normal}
 
+    val cs = scala.collection.mutable.ListBuffer[Double]()
     val muTrue = Array(1.0, 3.0)
     val J = muTrue.size
     val sig2True = 0.5
@@ -60,20 +62,23 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
         // updateSig2(s, i, out) // TODO 
         updateMu(s)
         updateSig2(s)
+        if (i < 2000) cs.append(stepSigSig2.value)
       }
     }
 
     val state = Param(Array(0, 0), 1)
     val (niter, nburn) = (2000, 20000)
 
-    val out = Model.gibbs(state, niter=niter, nburn=nburn, printProgress=printDebug)
+    val out = timer {
+      Model.gibbs(state, niter=niter, nburn=nburn, printProgress=printDebug)
+    }
     val muPost = out._1.map{ s => s.mu }
     val muMean = muPost.transpose.map{ mean }
     val muSd = muPost.transpose.map{ sd }
     val sig2Post = out._1.map{ _.sig2 }
     val sig2Mean = mean(sig2Post)
 
-    if (printDebug) {
+    if (false) {
       out._1.foreach{ s => println(arrayToString(s.mu)) }
       println(s"mu post mean: ${muMean}")
       println(s"mu truth: ${muTrue.toList}")
@@ -102,12 +107,14 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
     R.muPost = muPost.toArray
     R.muTrue = muTrue
     R.J = J
+    R.cs_sig2 = cs.toArray
     R eval """
     library(rcommon)
     pdf("src/test/output/plots.pdf")
     plotPost(sig2Post, main=paste('truth:', sig2True))
     plotPosts(muPost, cnames=paste('truth:', round(muTrue, 3)))
     #plot(1:length($cs_sig2), $cs_sig2, type='l')
+    plot(cs_sig2, type='l')
 
     dev.off()
     """ 
