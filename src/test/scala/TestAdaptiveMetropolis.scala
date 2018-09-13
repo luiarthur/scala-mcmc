@@ -14,14 +14,14 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
     import distribution.continuous.{InverseGamma, Normal}
 
     val cs = scala.collection.mutable.ListBuffer[Double]()
-    val muTrue = Array(1.0, 3.0)
-    val J = muTrue.size
+    val J = 3
+    val muTrue = Array.tabulate(J){ _ => rng.nextGaussian() * 10}
     val sig2True = 0.5
-    val nHalf = 1000
+    val nj = 300
     val y = muTrue.map{ m => 
-      Array.tabulate(nHalf){ i => rng.nextGaussian(m, math.sqrt(sig2True)) }
+      Array.tabulate(nj){ i => rng.nextGaussian(m, math.sqrt(sig2True)) }
     }
-    val n = nHalf * 2
+    val n = y.flatten.size
     val muPriorMean = 0.0
     val muPriorSd = 5.0
     val sig2PriorA = 3.0
@@ -36,7 +36,7 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
       def deepcopy1(s:State):Substate1 = Param(s.mu.clone, s.sig2)
       def updateMuj(s:State, j:Int): Unit = {
         def logFullCond(muj:Double):Double = {
-          val ll = y(j).map{ Normal(muj, s.sig2).lpdf }.sum
+          val ll = y(j).view.map{ Normal(muj, math.sqrt(s.sig2)).lpdf }.sum
           val lp = Normal(muPriorMean, muPriorSd).lpdf(muj)
           ll + lp
         }
@@ -45,14 +45,16 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
       }
 
       def updateMu(s:State): Unit = {
-        (0 to 1).foreach{ j => updateMuj(s, j=j) }
+        (0 until J).view.foreach{ j => updateMuj(s, j=j) }
       }
 
       def updateSig2(s:State): Unit = {
-        def lp(sig2:Double):Double = InverseGamma(sig2PriorA,sig2PriorB).lpdf(sig2)
+        def lp(sig2:Double):Double = {
+          InverseGamma(sig2PriorA, sig2PriorB).lpdf(sig2)
+        }
         def ll(sig2:Double):Double = {
-          (0 until J).map{ j =>
-            y(j).map{ yij => Normal(s.mu(j), math.sqrt(sig2)).lpdf(yij) }.sum
+          (0 until J).view.map{ j =>
+            y(j).view.map{ yij => Normal(s.mu(j), math.sqrt(sig2)).lpdf(yij) }.sum
           }.sum
         }
         s.sig2 = metLogAdaptive(s.sig2, ll, lp, stepSigSig2, rng)
@@ -66,7 +68,7 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
       }
     }
 
-    val state = Param(Array(0, 0), 1)
+    val state = Param(Array.fill(J)(0), 1)
     val (niter, nburn) = (2000, 20000)
 
     val out = timer {
@@ -94,7 +96,7 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
       println(s"sig2 Acceptance Rate: ${Model.stepSigSig2.accRate}")
     }
 
-    val eps = 0.05
+    val eps = .1
     muMean.toList.zip(muTrue).foreach{ case (m, mtrue) =>
       assertApprox(m, mtrue, eps)
     }
@@ -112,7 +114,7 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
     library(rcommon)
     pdf("src/test/output/plots.pdf")
     plotPost(sig2Post, main=paste('truth:', sig2True))
-    plotPosts(muPost, cnames=paste('truth:', round(muTrue, 3)))
+    plotPosts(muPost[,1:min(4,J)], cnames=paste('truth:', round(muTrue, 3)))
     #plot(1:length($cs_sig2), $cs_sig2, type='l')
     plot(cs_sig2, type='l')
 

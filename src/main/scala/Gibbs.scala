@@ -33,6 +33,8 @@ trait Gibbs extends MCMC {
   def gibbs(s: State, niter:Int, nburn:Int,
             printProgress:Boolean=true): Output = {
 
+    val mileStone:Int = (niter + nburn) / 10
+
     @tailrec
     def engine(_niter:Int, _nburn:Int,
                _out:Output=(List(), List(), List())): Output = {
@@ -41,7 +43,7 @@ trait Gibbs extends MCMC {
       update(s, _niter, _out)
 
       // Print progress
-      if (printProgress && (_niter + _nburn) % 100 == 0) {
+      if (printProgress && (_niter + _nburn) % mileStone == 0) {
         println(s"Progress: ${_niter + _nburn} iterations remaining -- ${Calendar.getInstance.getTime}")
       }
 
