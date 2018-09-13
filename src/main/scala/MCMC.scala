@@ -139,7 +139,6 @@ trait MCMC {
     newX
   }
 
-  // TODO: Test
   def metLogitAdaptive(curr:Double, ll:Double=>Double, lp: Double=>Double,
                        a:Double=0, b:Double=1,
                        stepSig:TuningParam[Double], rng:RNG,
@@ -148,7 +147,7 @@ trait MCMC {
     val currLogitX = logit(curr, a, b)
 
     def lfcLogitX(logitX:Double):Double = {
-      val x = math.exp(logitX)
+      val x = sigmoid(logitX, a, b)
       ll(x) + logpdfLogitX(logitX, lp, a, b)
     }
 

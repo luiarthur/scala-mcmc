@@ -11,7 +11,7 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
   //import distribution.{RandomPar => rng}
 
   test("Normal Model") {
-    import distribution.continuous.{InverseGamma, Normal}
+    import distribution.continuous._
 
     val cs = scala.collection.mutable.ListBuffer[Double]()
     val J = 3
@@ -51,6 +51,7 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
       def updateSig2(s:State): Unit = {
         def lp(sig2:Double):Double = {
           InverseGamma(sig2PriorA, sig2PriorB).lpdf(sig2)
+          //Uniform(0, 5).lpdf(sig2) // For testing metLogitAdaptive
         }
         def ll(sig2:Double):Double = {
           (0 until J).view.map{ j =>
@@ -58,6 +59,7 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
           }.sum
         }
         s.sig2 = metLogAdaptive(s.sig2, ll, lp, stepSigSig2, rng)
+        //s.sig2 = metLogitAdaptive(s.sig2, ll, lp, 0, 5, stepSigSig2, rng)
       }
 
       def update(s:State, i:Int, out:Output) {
@@ -98,9 +100,9 @@ class TestAdaptiveMetropolis extends TestUtil with mcmc.MCMC {
 
     val eps = .1
     muMean.toList.zip(muTrue).foreach{ case (m, mtrue) =>
-      assertApprox(m, mtrue, eps)
+      assertApprox(m, mtrue, eps, msg="mu")
     }
-    assertApprox(sig2Mean, sig2True, eps)
+    assertApprox(sig2Mean, sig2True, eps, msg="sig2")
 
     ///* Rscala example
     val R = org.ddahl.rscala.RClient()
