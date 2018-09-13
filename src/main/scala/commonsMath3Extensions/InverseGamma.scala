@@ -9,6 +9,7 @@ import org.apache.commons.math3.distribution._
 */
 
 case class InverseGamma(val shape:Double, val scale:Double, rng:RandomGenerator=null) extends AbstractRealDistribution(rng) {
+  require(shape > 0 && scale > 0, "InverseGamma(shape, scale): shape,scale > 0 required!")
   import math.{log, pow, exp}
   import org.apache.commons.math3.special.Gamma.{logGamma, regularizedGammaQ}
   override def logDensity(x:Double) = if (x > 0) {
