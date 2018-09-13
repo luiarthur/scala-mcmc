@@ -1,9 +1,8 @@
 import org.scalatest.FunSuite
 import mcmc.util.timer
 
-import org.scalactic.TolerantNumerics
-
 trait TestUtil extends FunSuite {
+
   def assertApprox(x:Double, y:Double, eps:Double=1E-4, debug:Boolean=false) = {
     val valid = math.abs(x - y) < eps
     if (debug) {
@@ -46,15 +45,15 @@ trait TestUtil extends FunSuite {
     }
   }
 
-  //def assertApproxMat(a:Array[Array[Double]], b:Array[Array[Double]], eps:Double=1E-3, debug:Boolean=false): Unit = {
-  //  import distribution.SpecialFunctions.printMat
+  def assertApproxMat(a:Array[Array[Double]], b:Array[Array[Double]], eps:Double=1E-3, debug:Boolean=false): Unit = {
+    import distribution.SpecialFunctions.printMat
 
-  //  val matA = a.flatten
-  //  val matB = b.flatten
-  //  matA.zip(matB).foreach{ case (ma,mb) => 
-  //    assertApprox(ma, mb, eps)
-  //  }
-  //}
+    val matA = a.flatten
+    val matB = b.flatten
+    matA.zip(matB).foreach{ case (ma,mb) => 
+      assertApprox(ma, mb, eps)
+    }
+  }
   
   def arrayToString[T](arr:Array[T]): String = arr.mkString(", ")
   def mean(x:List[Double]):Double = x.sum / x.size
@@ -65,6 +64,5 @@ trait TestUtil extends FunSuite {
   }
   def sd(x:List[Double]):Double = math.sqrt(variance(x))
 
-  // TODO: write macro using TolerantNumerics
-  def approx = ???
+
 }

@@ -1,9 +1,7 @@
 package mcmc
 
-//import distribution.RandomGeneric
-//import distribution.continuous.Logistic
-import org.apache.commons.math3.random.{RandomDataGenerator2, RandomGenerator}
-import org.apache.commons.math3.distribution.{MultivariateNormalDistribution => MvNormal, Logistic}
+import distribution.RandomGeneric
+import distribution.continuous.Logistic
 
 case class TuningParam[T](var value:T, var accCount:Int=0, var currIter:Int=1) {
 
@@ -17,21 +15,19 @@ case class TuningParam[T](var value:T, var accCount:Int=0, var currIter:Int=1) {
 
 
 trait MCMC {
-  //type RDG = RandomGeneric
-  type RDG = RandomDataGenerator2
+  type RNG = RandomGeneric
   def metropolis(curr:Double, logFullCond: Double=>Double,
-                 stepSig:Double, rdg:RDG): Double = {
+                 stepSig:Double, rng:RNG): Double = {
 
-    val cand = rdg.nextGaussian(curr, stepSig)
-    val u = math.log(rdg.nextUniform(0,1))
+    val cand = rng.nextGaussian(curr, stepSig)
+    val u = math.log(rng.nextUniform(0,1))
     val p = logFullCond(cand) - logFullCond(curr)
     if (p > u) cand else curr
   }
 
-  def metropolisVec(curr:Array[Double], logFullCond:Array[Double]=>Double, stepCovMat:Array[Array[Double]], rdg:RDG): Array[Double] = {
-    //val cand = rdg.nextMvNormal(curr, stepCovMat)
-    val cand = new MvNormal(rdg.getRandomGenerator(), curr, stepCovMat).sample
-    val u = math.log(rdg.nextUniform(0,1))
+  def metropolisVec(curr:Array[Double], logFullCond:Array[Double]=>Double, stepCovMat:Array[Array[Double]], rng:RNG): Array[Double] = {
+    val cand = rng.nextMvNormal(curr, stepCovMat)
+    val u = math.log(rng.nextUniform(0,1))
     val p = logFullCond(cand) - logFullCond(curr)
     if (p > u) cand else curr
   }
@@ -43,7 +39,7 @@ trait MCMC {
    *   https://m-clark.github.io/docs/ld_mcmc/index_onepage.html
    */
   def metropolisAdaptive(curr:Double, logFullCond:Double=>Double,
-                         stepSig:TuningParam[Double], rdg:RDG,
+                         stepSig:TuningParam[Double], rng:RNG,
                          delta:Int=>Double=defaultDelta,
                          targetAcc:Double=.44):Double = {
 
@@ -56,8 +52,8 @@ trait MCMC {
       stepSig.value /= factor
     }
 
-    val cand = rdg.nextGaussian(curr, stepSig.value)
-    val u = math.log(rdg.nextUniform(0,1))
+    val cand = rng.nextGaussian(curr, stepSig.value)
+    val u = math.log(rng.nextUniform(0,1))
     val p = logFullCond(cand) - logFullCond(curr)
     val accept = p > u
 
@@ -100,7 +96,7 @@ trait MCMC {
 
   def logpdfLogitX(logitX:Double, logpdfX:Double=>Double, a:Double=0, b:Double=1): Double = {
     lazy val x = sigmoid(logitX, a, b)
-    lazy val logJacobian:Double = Logistic(0, 1).logDensity(logitX) + math.log(b - a)
+    lazy val logJacobian:Double = Logistic(0, 1).lpdf(logitX) + math.log(b - a)
     logpdfX(x) + logJacobian
   }
   /* R Test
@@ -118,7 +114,7 @@ trait MCMC {
 
   
   def metLogAdaptive(curr:Double, ll:Double=>Double, lp: Double=>Double,
-                     stepSig:TuningParam[Double], rdg:RDG,
+                     stepSig:TuningParam[Double], rng:RNG,
                      delta:Int=>Double=defaultDelta,
                      targetAcc:Double=.44):Double = {
     val currLogX = math.log(curr)
@@ -128,7 +124,7 @@ trait MCMC {
       ll(x) + logpdfLogX(logX, lp)
     }
 
-    val newLogX = metropolisAdaptive(currLogX, lfcLogX, stepSig, rdg,
+    val newLogX = metropolisAdaptive(currLogX, lfcLogX, stepSig, rng,
                                      delta, targetAcc)
     val newX = math.exp(newLogX)
     newX
@@ -137,7 +133,7 @@ trait MCMC {
   // TODO: Test
   def metLogitAdaptive(curr:Double, ll:Double=>Double, lp: Double=>Double,
                        a:Double=0, b:Double=1,
-                       stepSig:TuningParam[Double], rdg:RDG,
+                       stepSig:TuningParam[Double], rng:RNG,
                        delta:Int=>Double=defaultDelta,
                        targetAcc:Double=.44):Double = {
     val currLogitX = logit(curr, a, b)
@@ -147,25 +143,25 @@ trait MCMC {
       ll(x) + logpdfLogitX(logitX, lp, a, b)
     }
 
-    val newLogitX = metropolisAdaptive(currLogitX, lfcLogitX, stepSig, rdg,
+    val newLogitX = metropolisAdaptive(currLogitX, lfcLogitX, stepSig, rng,
                                        delta, targetAcc)
     val newX = sigmoid(newLogitX, a, b)
     newX
   }
 
   // Section 2 of: http://probability.ca/jeff/ftpdir/adaptex.pdf
-  def metAdaptiveHaario(history:List[Double], logFullCond:Double=>Double, stepSig:TuningParam[Double], beta:Double=0.05, rdg:RDG):Double = {
+  def metAdaptiveHaario(history:List[Double], logFullCond:Double=>Double, stepSig:TuningParam[Double], beta:Double=0.05, rng:RNG):Double = {
     def proposalSample(curr:Double): Double = {
       if (stepSig.currIter > 2) {
-        val u = rdg.nextUniform(0,1)
+        val u = rng.nextDouble
         if (beta > u) {
-          rdg.nextGaussian(curr, 0.1)
+          rng.nextGaussian(curr, 0.1)
         } else {
           val s = 2.38 * sd(history)
-          rdg.nextGaussian(curr, s)
+          rng.nextGaussian(curr, s)
         }
       } else {
-        rdg.nextGaussian(curr, 0.1)
+        rng.nextGaussian(curr, 0.1)
       }
     }
 
